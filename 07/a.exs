@@ -1,14 +1,13 @@
 [file] = System.argv()
 
 File.stream!(file)
-|> Enum.with_index()
-|> Enum.reduce(nil, fn
-  {line, 0}, nil ->
+|> Enum.reduce(:start, fn
+  line, :start ->
     # First row: Create a beam wherever the "S" starting symbol is.
     [{col, _}] = Regex.run(~r/S/, line, return: :index)
     {0, MapSet.new([col])}
 
-  {line, _}, {split_count, beams} ->
+  line, {split_count, beams} ->
     # Subsequent rows: Find beams hitting splitters.
     splits =
       line
