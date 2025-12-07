@@ -24,6 +24,7 @@ end)
   {sum, product} =
     case number do
       "" ->
+        # No number, blank row.  Reset the tally.
         initial
 
       n when is_binary(n) ->
