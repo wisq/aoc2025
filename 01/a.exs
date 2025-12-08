@@ -13,13 +13,7 @@ File.stream!(file)
       end
     end)
 
-  pos =
-    (pos + amount)
-    |> rem(100)
-    |> then(fn
-      n when n < 0 -> 100 + n
-      n when n >= 0 -> n
-    end)
+  pos = (pos + amount) |> Integer.mod(100)
 
   zeros =
     case pos do
