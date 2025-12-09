@@ -10,9 +10,19 @@ I tried doing a `reduce` that kept a map of circuit contents by ID (so I knew wh
 
 The final circuit structure thus ended up being a Map of some arbitrary key — again, I just used the `id1` of the join that first created the circuit — to a `MapSet` containing the entire contents of a circuit.  Joining two boxes would just involve runnng through the entire map looking for circuits containing either of the boxes.  If I found nothing, I built a new circuit.  If I found just one entry, it meant one of them was in a circuit (or they were already both in the same one), and I could just put both IDs into that circuit.  And if I found two, then I just needed to `MapSet.union` the two circuits into a single entry.
 
+## Alternate implementation (`a2.exs`)
+
+This is a reimplementation that takes the nearest N connections and puts them into a map of `from_id => [to_ids]`.  This map is bidirectional, in that e.g. if there's a link between node `0` and node `19`, then `19` will be in `map[0]` and `0` will be in `map[19]`. 
+
+It then walks that map to create each circuit.  Pick a node, add all the links from that node to other nodes, add all the links from those nodes to other nodes, etc.  The upside is that we never have to join any two circuits together, because we can walk the full extent of any given circuit in a single pass.
+
+The downside is that, for larger circuits, we're going to see the same nodes over and over and over again, and keep rejecting them because they've already been assigned to a circuit.  (Also, this approach cannot easily be translated into a working solution for part 2.)
+
+Benchmarking shows this approach to be only about 8% faster than the original.  I initially also had an `a3.exs` that used `BiMultiMap` from the [bimap](https://hex.pm/packages/bimap) library, but that was actually a tiny bit slower than this version, so I discarded it.
+
 # Part 2 (`b.exs`)
 
-Part 2 was pretty easy given my solver for part 1.  I just needed to ditch the limit on how many joins we did, stop as soon as any circuit contained all boxes, and report the coordinates of the join that caused that to happen.
+Part 2 was pretty easy given my (original, non-alternate) solver for part 1.  I just needed to ditch the limit on how many joins we did, stop as soon as any circuit contained all boxes, and report the coordinates of the join that caused that to happen.
 
 This meant my `reduce` became a `reduce_while`, in which I would take the first circuit in my circuit list, and see if it had N entries, where N is the total number of boxes.  (It's not enough to just check if we have a single circuit, since that might happen multiple times without actually containing all boxes.)
 

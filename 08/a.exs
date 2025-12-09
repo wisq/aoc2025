@@ -32,6 +32,19 @@ defmodule JunctionBoxes do
     end
   end
 
+  def run([count, file]) do
+    count = String.to_integer(count)
+
+    File.stream!(file)
+    |> parse()
+    |> connect_closest(count)
+    |> Circuits.largest()
+    |> io_inspect(label: "sizes")
+    |> Enum.take(3)
+    |> Enum.product()
+    |> io_inspect(label: "product")
+  end
+
   def parse(enum) do
     enum
     |> Enum.with_index()
@@ -73,16 +86,16 @@ defmodule JunctionBoxes do
       end)
     end)
   end
+
+  defp io_inspect(value, opts \\ []) do
+    case Application.get_env(:aoc2025, :benchmarking, false) do
+      true -> value
+      false -> IO.inspect(value, opts)
+    end
+  end
 end
 
-[count, file] = System.argv()
-count = String.to_integer(count)
-
-File.stream!(file)
-|> JunctionBoxes.parse()
-|> JunctionBoxes.connect_closest(count)
-|> JunctionBoxes.Circuits.largest()
-|> IO.inspect(label: "sizes")
-|> Enum.take(3)
-|> Enum.product()
-|> IO.inspect(label: "product")
+unless Application.get_env(:aoc2025, :benchmarking) do
+  System.argv()
+  |> JunctionBoxes.run()
+end
