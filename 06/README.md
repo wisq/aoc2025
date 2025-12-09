@@ -26,6 +26,6 @@ I decided to get silly and try just doing everything by streaming data off a sin
 - choose either `Enum.sum/1` or `Enum.product/1` as our math function, based on the operation _(it's very handy that these both already exist!)_
 - do the normal solution (transpose, turn into numbers, apply the math function)
 
-It's slower than the much more normal solution in `b.exs`, but it's a fun use of range math and `:file` seeking operations, and it can theoretically scale to any file size without memory issues.  (Granted I suspect you would run into execution time issues _long_ before you ran into memory issues anyway.)
+It's about 28x slower(!!) than the much more normal solution in `b.exs`, but it's a fun use of range math and `:file` seeking operations, and it can theoretically scale to any file size without memory issues.  (But I suspect you would run into execution time issues _long_ before you ran into memory issues anyway.)
 
 Also worth noting that despite the examples going right-to-left, there's absolutely no requirement to do so.  It does make it easier if you're going purely gridwise like I did in my original `b.exs`, since the operator is the very last thing you see on the very last "row" (right-to-left column), right at the exact time that you need to know what to add to the grand total.  But both of our chosen operations (add, multiply) are commutative, so if you know exactly what your current problem's bounding box is, there's no reason you need to stick to RTL order.
