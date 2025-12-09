@@ -6,4 +6,18 @@ Since all we need is the maximum rectangle size, there's no need to keep 123k re
 
 # Part 2 (`b.exs`)
 
-TBD
+Part 1 felt so easy that I figured they had to be setting us up for a doozey of a part 2, and they did not disappoint, at least at first glance.
+
+I was beginning to think that my choice of language was going to screw me.  The way the problem explained it, it looked like I really was going to need a fast, mutable, random-access, read-write grid structure — something I just can't possibly have in Elixir, with its immutable data structures.
+
+I briefly considered encoding the entire grid in a single binary string — since Elixir's `binary_part` function _is_ fast random access, at least according to my understanding of the docs — and using math to be able to randomly access any given X/Y coordinates, with the added bonus that I could read potentially large horizontal chunks in a single operation.  But I realised that writes would be _horrendously_ slow.  (One of the main reasons I wanted a grid was to be able to do a flood fill on both sides of a given edge to see which part was inside and which was outside, and that would have been _way_ too many writes to be feasible.)
+
+Plus, even if I did manage to get a working fast grid structure, the number of reads to determine if a rectangle was legit would be _insane_.  Like my final result was over _one billion points_ in size.  I can't imagine having to check millions or billions of coordinates for each and every rectangle to see if it's limited to red/green tiles.
+
+Eventually I realised that there was a much easier way to disqualify a rectangle: If any edge were to touch the _inside_ of the rectangle (i.e. not including the rectangle's one-tile border), then it doesn't really matter which side of that edge is inside or outside — the rectangle now contains at least one outside pixel, and is thus invalid.
+
+So I compiled the list of edges into tuples of either `{x, y1..y2}` (a vertical line on column `x`) or `{x1..x2, y}` (a horizontal line on row `y`).  A rectangle with upper left coordinate of `x1..y1` and lower right coordinate of `x2..y2` would be invalid if there was any edge within the rectangle formed by `{x1+1, y1+1}` at the top left and `{x2-1, y2-1}` at the bottom right.
+
+The final script still only took about five seconds to run, but parallelising it with `Task.async_stream` got that down to just one second, nearly a third of which is just basic startup time anyway.
+
+I later realised that another possible optimisation would be to check rectangle size **before** checking for intrusions, and throw any any rectangle that was smaller than the biggest known valid rectangle so far.  But this would have required I de-parallelise the script, and while it did reduce runtime from 5 to 2.5 seconds, that was still slower than the 1-second parallel version.
