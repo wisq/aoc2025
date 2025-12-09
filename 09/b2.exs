@@ -1,4 +1,4 @@
-defmodule BiggestRectangle do
+defmodule BiggestRectangle2 do
   def run([file]) do
     red_tiles = parse_red_tiles(file)
     edges = find_edges(red_tiles)
@@ -32,18 +32,43 @@ defmodule BiggestRectangle do
   end
 
   defp find_biggest(red_tiles, edges) do
+    ets = create_ets()
+
     red_tiles
     |> Enum.with_index()
     |> Task.async_stream(fn {red1, index} ->
       red_tiles
       |> Enum.drop(index + 1)
-      |> Enum.map(fn red2 -> {rectangle_size(red1, red2), red2} end)
-      |> Enum.sort(:desc)
-      |> Enum.find({0, nil}, fn {_size, red2} -> !has_intrusions?(red1, red2, edges) end)
-      |> elem(0)
+      |> Enum.reduce(get_max_size(ets), fn red2, max_size ->
+        size = rectangle_size(red1, red2)
+
+        cond do
+          size <= max_size -> max_size
+          has_intrusions?(red1, red2, edges) -> max_size
+          true -> size
+        end
+      end)
+      |> put_max_size(ets)
     end)
     |> Enum.map(fn {:ok, ms} -> ms end)
+    |> io_inspect(label: "all max sizes", limit: :infinity)
     |> Enum.max()
+  end
+
+  defp create_ets do
+    table = :ets.new(:rect, [:set, :public])
+    true = :ets.insert_new(table, {:max_size, 0})
+    table
+  end
+
+  defp get_max_size(ets) do
+    [{:max_size, value}] = :ets.lookup(ets, :max_size)
+    value
+  end
+
+  defp put_max_size(size, ets) do
+    true = :ets.insert(ets, {:max_size, size})
+    size
   end
 
   defp has_intrusions?({rect_x1, rect_y1}, {rect_x2, rect_y2}, edges) do
@@ -71,5 +96,5 @@ end
 
 unless Application.get_env(:aoc2025, :benchmarking) do
   System.argv()
-  |> BiggestRectangle.run()
+  |> BiggestRectangle2.run()
 end

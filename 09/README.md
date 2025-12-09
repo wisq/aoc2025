@@ -23,3 +23,21 @@ The final script still only took about five seconds to run, but parallelising it
 I later realised that another possible optimisation would be to check rectangle size **before** checking for intrusions, and throw any any rectangle that was smaller than the biggest known valid rectangle so far.  This reduced the runtime of the non-parallel version from 5 to 2.5 seconds, but had no discernible effect on the runtime of the parallel version.  Presumably this was because each process was tracking its biggest rectangle separately, meaning far fewer rectangles were eliminated before checking their validity.
 
 However, this led to a minor optimisation that did actually work in the parallel case: Instead of just tracking the largest valid rectangle, each process could instead record all possible rectangles, sort them by size (descending), and then return the size of the first valid (non-intersecting) rectangle.  This eliminated far more rectangles (since each process no longer had to test multiple smaller rectangles before it got to the biggest one), which boosted performance by about 8%.
+
+## Alternate implementation (`b2.exs`)
+
+This switches us back to an implementation much more similar to `a.exs` — a simple `reduce` that only keeps track of the biggest size it's seen — but that still runs in parallel, using an ETS to store the current biggest known rectangle size at the end of each parallel process.  
+
+It achieves the best of both worlds, with later processes greatly benefitting from the filtering wisdom of their predecessors.  This can be easily demonstrated by stubbing out the ETS calls such that every process starts at `max_size = 0`, as seen in `b3.exs` in this benchmark, which runs only a tiny bit faster than the original `b.exs`:
+
+```
+Name                ips        average  deviation         median         99th %
+09/b2.exs         12.56       79.61 ms     ±5.17%       78.96 ms       92.29 ms
+09/b3.exs          8.28      120.71 ms     ±3.79%      121.04 ms      128.82 ms
+09/b.exs           8.22      121.62 ms     ±4.77%      121.91 ms      135.84 ms
+
+Comparison:
+09/b2.exs         12.56
+09/b3.exs          8.28 - 1.52x slower +41.10 ms
+09/b.exs           8.22 - 1.53x slower +42.01 ms
+```
