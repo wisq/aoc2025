@@ -37,12 +37,10 @@ defmodule BiggestRectangle do
     |> Task.async_stream(fn {red1, index} ->
       red_tiles
       |> Enum.drop(index + 1)
-      |> Enum.reduce(0, fn red2, ms ->
-        case has_intrusions?(red1, red2, edges) do
-          true -> ms
-          false -> ms |> max(rectangle_size(red1, red2))
-        end
-      end)
+      |> Enum.map(fn red2 -> {rectangle_size(red1, red2), red2} end)
+      |> Enum.sort(:desc)
+      |> Enum.find({0, nil}, fn {_size, red2} -> !has_intrusions?(red1, red2, edges) end)
+      |> elem(0)
     end)
     |> Enum.map(fn {:ok, ms} -> ms end)
     |> Enum.max()
