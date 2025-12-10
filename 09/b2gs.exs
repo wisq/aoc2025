@@ -1,4 +1,23 @@
-defmodule BiggestRectangle2 do
+defmodule BiggestRectangle2GS do
+  defmodule MaxSize do
+    use GenServer
+
+    def start_link, do: GenServer.start_link(__MODULE__, nil)
+    def get(pid), do: GenServer.call(pid, :get)
+
+    def put(size, pid) do
+      GenServer.cast(pid, {:put, size})
+      size
+    end
+
+    @impl true
+    def init(_), do: {:ok, 0}
+    @impl true
+    def handle_cast({:put, size}, max_size), do: {:noreply, max(max_size, size)}
+    @impl true
+    def handle_call(:get, _from, max_size), do: {:reply, max_size, max_size}
+  end
+
   def run([file]) do
     red_tiles = parse_red_tiles(file)
     edges = find_edges(red_tiles)
@@ -32,14 +51,14 @@ defmodule BiggestRectangle2 do
   end
 
   defp find_biggest(red_tiles, edges) do
-    ets = create_ets()
+    {:ok, ms_pid} = MaxSize.start_link()
 
     red_tiles
     |> Enum.with_index()
     |> Task.async_stream(fn {red1, index} ->
       red_tiles
       |> Enum.drop(index + 1)
-      |> Enum.reduce(get_max_size(ets), fn red2, max_size ->
+      |> Enum.reduce(MaxSize.get(ms_pid), fn red2, max_size ->
         size = rectangle_size(red1, red2)
 
         cond do
@@ -48,28 +67,11 @@ defmodule BiggestRectangle2 do
           true -> size
         end
       end)
-      |> put_max_size(ets)
+      |> MaxSize.put(ms_pid)
     end)
     |> Enum.map(fn {:ok, ms} -> ms end)
     |> io_inspect(label: "all max sizes", limit: :infinity)
     |> Enum.max()
-  end
-
-  defp create_ets do
-    table = :ets.new(:rect, [:set, :public])
-    true = :ets.insert_new(table, {:max_size, 0})
-    table
-  end
-
-  defp get_max_size(ets) do
-    [{:max_size, value}] = :ets.lookup(ets, :max_size)
-    value
-  end
-
-  defp put_max_size(size, ets) do
-    max_size = get_max_size(ets) |> max(size)
-    true = :ets.insert(ets, {:max_size, max_size})
-    max_size
   end
 
   defp has_intrusions?({rect_x1, rect_y1}, {rect_x2, rect_y2}, edges) do
@@ -97,5 +99,5 @@ end
 
 unless Application.get_env(:aoc2025, :benchmarking) do
   System.argv()
-  |> BiggestRectangle2.run()
+  |> BiggestRectangle2GS.run()
 end

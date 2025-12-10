@@ -24,20 +24,12 @@ I later realised that another possible optimisation would be to check rectangle 
 
 However, this led to a minor optimisation that did actually work in the parallel case: Instead of just tracking the largest valid rectangle, each process could instead record all possible rectangles, sort them by size (descending), and then return the size of the first valid (non-intersecting) rectangle.  This eliminated far more rectangles (since each process no longer had to test multiple smaller rectangles before it got to the biggest one), which boosted performance by about 8%.
 
-## Alternate implementation (`b2.exs`)
+## Alternate implementations (`b2.exs`, `b2gs.exs`)
 
-This switches us back to an implementation much more similar to `a.exs` — a simple `reduce` that only keeps track of the biggest size it's seen — but that still runs in parallel, using an ETS to store the current biggest known rectangle size at the end of each parallel process.  
+`b2.exs` switches us back to an implementation much more similar to `a.exs` — a simple `reduce` that only keeps track of the biggest size it's seen — but that still runs in parallel, using an ETS to store the current biggest known rectangle size at the end of each parallel process.  It achieves the best of both worlds, with later processes greatly benefitting from the filtering wisdom of their predecessors.
 
-It achieves the best of both worlds, with later processes greatly benefitting from the filtering wisdom of their predecessors.  This can be easily demonstrated by stubbing out the ETS calls such that every process starts at `max_size = 0`, as seen in `b3.exs` in this benchmark, which runs only a tiny bit faster than the original `b.exs`:
+One flaw with the ETS implementation is that updates are not truly atomic.  We do make an effort to "get" (ETS `lookup`) right before we "put" (ETS `insert`) to ensure that we're not _lowering_ the ETS value, but with all the concurrent writes going on, that's pretty much guaranteed to happen at some point anyway.  However, there's enough processes reading and writing at once that it's likely that any "bad" value (lower than the current max) will get overwritten by some other process that already read and started with the "good" value, then wrote that value (or something better) back before it exited.
 
-```
-Name                ips        average  deviation         median         99th %
-09/b2.exs         12.56       79.61 ms     ±5.17%       78.96 ms       92.29 ms
-09/b3.exs          8.28      120.71 ms     ±3.79%      121.04 ms      128.82 ms
-09/b.exs           8.22      121.62 ms     ±4.77%      121.91 ms      135.84 ms
+Due to this atomicity problem, it's also important to never use this ETS `max_size` value as the final answer, since it may or may not be correct.  (It's not a guaranteed source of truth, just a best-effort optimisation persistence tool.)
 
-Comparison:
-09/b2.exs         12.56
-09/b3.exs          8.28 - 1.52x slower +41.10 ms
-09/b.exs           8.22 - 1.53x slower +42.01 ms
-```
+`b2gs.exs` is a cleaner and more idiomatic version that uses a `GenServer` to atomically update the "biggest size seen" counter.  Performance wise, it's pretty much exactly on par with the ETS version, which shows that the ETS atomicity problem is not a huge deal in this case.
