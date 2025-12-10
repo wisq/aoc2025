@@ -1,4 +1,4 @@
-defmodule Factory do
+defmodule Factory2 do
   def run([file]) do
     File.stream!(file)
     |> Enum.map(&parse_line/1)
@@ -29,19 +29,23 @@ defmodule Factory do
 
   defp solve({target, buttons}) do
     1..100
-    |> Enum.reduce_while(MapSet.new([0]), fn press_count, old_states ->
-      old_states
-      |> Enum.flat_map(fn st ->
-        buttons
-        |> Enum.map(&Bitwise.bxor(&1, st))
-      end)
-      |> MapSet.new()
-      |> then(fn new_states ->
-        case target in new_states do
-          false -> {:cont, new_states}
-          true -> {:halt, press_count}
-        end
-      end)
+    |> Enum.reduce_while(MapSet.new([target]), fn press_count, old_states ->
+      case MapSet.intersection(old_states, buttons) |> Enum.empty?() do
+        false ->
+          # Pressing one of the buttons now will zero out one of the states.
+          # So we're done as of this button press.
+          {:halt, press_count}
+
+        true ->
+          # More presses needed.
+          old_states
+          |> Enum.flat_map(fn st ->
+            buttons
+            |> Enum.map(&Bitwise.bxor(&1, st))
+          end)
+          |> MapSet.new()
+          |> then(&{:cont, &1})
+      end
     end)
   end
 
@@ -82,5 +86,5 @@ end
 
 unless Application.get_env(:aoc2025, :benchmarking) do
   System.argv()
-  |> Factory.run()
+  |> Factory2.run()
 end
